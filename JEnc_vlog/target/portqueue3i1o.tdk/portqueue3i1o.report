@@ -1,0 +1,204 @@
+### TIE Report File
+
+# These are the instructions in each slot
+slot <Inst> instructions: nop=NOP
+    DUMMY RECV1 RECV2 RECV3 SEND 
+
+
+### Register File port information
+# These are the read and write ports for each regfile. 
+regfile AR:
+        port rd0: width( 32) stage( 1 2) operands( {ars,0}) 
+        port rd1: width( 32) stage( 1 2 3) operands( {art,0}) 
+        port wr0: width( 32) stage( 1 2) operands( {ar0,0} {ar12,0} {ar4,0} {ar8,0} {arr,0} {ars,0} {ars_entry,0} {art,0}) 
+regfile MR:
+    
+        port rd0: width( 32) stage( 1 2) operands( {mr0,0} {mr1,0} {mr2,0} {mr3,0} {mx,0}) 
+        port rd1: width( 32) stage( 1) operands( {my,0}) 
+        port wr0: width( 32) stage( 2 3) operands( {mr0,0} {mr1,0} {mr2,0} {mr3,0} {mw,0}) 
+regfile BR:
+    
+        port rd0: width( 1 4 8 16) stage( 1) operands( {brall,0} {bs4,0} {bs8,0} {bt,0}) 
+        port rd1: width( 1) stage( 1) operands( {bs,0}) 
+        port wr0: width( 1 16) stage( 1) operands( {br,0} {brall,0} {bt,0}) 
+regfile FR:
+        port rd0: width( 32) stage( 1 2) operands( {frr,0}) 
+        port rd1: width( 32) stage( 1) operands( {frs,0}) 
+        port rd2: width( 32) stage( 1 2) operands( {frt,0}) 
+        port wr0: width( 32) stage( 1 2 4) operands( {frr,0} {frt,0}) 
+
+
+### Register File port instruction information
+# These are the read and write ports for each regfile. 
+regfile AR:
+  regfile AR: port rd0: slot #0 Inst
+    ADD<ars> ADDI<ars> ADDMI<ars> ADDX2<ars> ADDX4<ars> ADDX8<ars> AND<ars> 
+    BALL<ars> BANY<ars> BBC<ars> BBCI<ars> BBS<ars> BBSI<ars> BEQ<ars> 
+    BEQI<ars> BEQZ<ars> BGE<ars> BGEI<ars> BGEU<ars> BGEUI<ars> BGEZ<ars> 
+    BLT<ars> BLTI<ars> BLTU<ars> BLTUI<ars> BLTZ<ars> BNALL<ars> BNE<ars> 
+    BNEI<ars> BNEZ<ars> BNONE<ars> CALLX0<ars> CALLX12<ars> CALLX4<ars> 
+    CALLX8<ars> CLAMPS<ars> DHI<ars> DHWB<ars> DHWBI<ars> DII<ars> 
+    DIWB<ars> DIWBI<ars> DPFR<ars> DPFRO<ars> DPFW<ars> DPFWO<ars> 
+    ENTRY<ars> FLOAT.S<ars> IDTLB<ars> IHI<ars> III<ars> IITLB<ars> 
+    IPF<ars> JX<ars> L16SI<ars> L16UI<ars> L32AI<ars> L32E<ars> L32I<ars> 
+    L8UI<ars> LDCT<ars> LDDEC<ars> LDINC<ars> LICT<ars> LICW<ars> LOOP<ars> 
+    LOOPGTZ<ars> LOOPNEZ<ars> LSI<ars> LSIU<ars> LSX<ars> LSXU<ars> 
+    MAX<ars> MAXU<ars> MIN<ars> MINU<ars> MOVEQZ<ars> MOVF<ars> MOVGEZ<ars> 
+    MOVLTZ<ars> MOVNEZ<ars> MOVSP<ars> MOVT<ars> MUL.AA.HH<ars> 
+    MUL.AA.HL<ars> MUL.AA.LH<ars> MUL.AA.LL<ars> MUL.AD.HH<ars> 
+    MUL.AD.HL<ars> MUL.AD.LH<ars> MUL.AD.LL<ars> MUL16S<ars> MUL16U<ars> 
+    MULA.AA.HH<ars> MULA.AA.HL<ars> MULA.AA.LH<ars> MULA.AA.LL<ars> 
+    MULA.AD.HH<ars> MULA.AD.HL<ars> MULA.AD.LH<ars> MULA.AD.LL<ars> 
+    MULA.DA.HH.LDDEC<ars> MULA.DA.HH.LDINC<ars> MULA.DA.HL.LDDEC<ars> 
+    MULA.DA.HL.LDINC<ars> MULA.DA.LH.LDDEC<ars> MULA.DA.LH.LDINC<ars> 
+    MULA.DA.LL.LDDEC<ars> MULA.DA.LL.LDINC<ars> MULA.DD.HH.LDDEC<ars> 
+    MULA.DD.HH.LDINC<ars> MULA.DD.HL.LDDEC<ars> MULA.DD.HL.LDINC<ars> 
+    MULA.DD.LH.LDDEC<ars> MULA.DD.LH.LDINC<ars> MULA.DD.LL.LDDEC<ars> 
+    MULA.DD.LL.LDINC<ars> MULL<ars> MULS.AA.HH<ars> MULS.AA.HL<ars> 
+    MULS.AA.LH<ars> MULS.AA.LL<ars> MULS.AD.HH<ars> MULS.AD.HL<ars> 
+    MULS.AD.LH<ars> MULS.AD.LL<ars> MULSH<ars> MULUH<ars> NSA<ars> 
+    NSAU<ars> OR<ars> PDTLB<ars> PITLB<ars> RDTLB0<ars> RDTLB1<ars> 
+    RET<ars> RETW<ars> RITLB0<ars> RITLB1<ars> S16I<ars> S32C1I<ars> 
+    S32E<ars> S32I<ars> S32RI<ars> S8I<ars> SDCT<ars> SEND<ars> SEXT<ars> 
+    SICT<ars> SICW<ars> SLL<ars> SLLI<ars> SRC<ars> SSA8B<ars> SSA8L<ars> 
+    SSI<ars> SSIU<ars> SSL<ars> SSR<ars> SSX<ars> SSXU<ars> SUB<ars> 
+    SUBX2<ars> SUBX4<ars> SUBX8<ars> UFLOAT.S<ars> UMUL.AA.HH<ars> 
+    UMUL.AA.HL<ars> UMUL.AA.LH<ars> UMUL.AA.LL<ars> WDTLB<ars> WFR<ars> 
+    WITLB<ars> XOR<ars> 
+  regfile AR: port rd0: slot #0 Inst16a
+    ADD.N<ars> ADDI.N<ars> L32I.N<ars> S32I.N<ars> 
+  regfile AR: port rd0: slot #0 Inst16b
+    BEQZ.N<ars> BNEZ.N<ars> MOV.N<ars> RET.N<ars> RETW.N<ars> 
+  regfile AR: port rd1: slot #0 Inst
+    ABS<art> ADD<art> ADDX2<art> ADDX4<art> ADDX8<art> AND<art> BALL<art> 
+    BANY<art> BBC<art> BBS<art> BEQ<art> BGE<art> BGEU<art> BLT<art> 
+    BLTU<art> BNALL<art> BNE<art> BNONE<art> EXTUI<art> LSX<art> LSXU<art> 
+    MAX<art> MAXU<art> MIN<art> MINU<art> MOVEQZ.S<art> MOVEQZ<art> 
+    MOVGEZ.S<art> MOVGEZ<art> MOVLTZ.S<art> MOVLTZ<art> MOVNEZ.S<art> 
+    MOVNEZ<art> MUL.AA.HH<art> MUL.AA.HL<art> MUL.AA.LH<art> MUL.AA.LL<art> 
+    MUL.DA.HH<art> MUL.DA.HL<art> MUL.DA.LH<art> MUL.DA.LL<art> MUL16S<art> 
+    MUL16U<art> MULA.AA.HH<art> MULA.AA.HL<art> MULA.AA.LH<art> 
+    MULA.AA.LL<art> MULA.DA.HH.LDDEC<art> MULA.DA.HH.LDINC<art> 
+    MULA.DA.HH<art> MULA.DA.HL.LDDEC<art> MULA.DA.HL.LDINC<art> 
+    MULA.DA.HL<art> MULA.DA.LH.LDDEC<art> MULA.DA.LH.LDINC<art> 
+    MULA.DA.LH<art> MULA.DA.LL.LDDEC<art> MULA.DA.LL.LDINC<art> 
+    MULA.DA.LL<art> MULL<art> MULS.AA.HH<art> MULS.AA.HL<art> 
+    MULS.AA.LH<art> MULS.AA.LL<art> MULS.DA.HH<art> MULS.DA.HL<art> 
+    MULS.DA.LH<art> MULS.DA.LL<art> MULSH<art> MULUH<art> NEG<art> OR<art> 
+    S16I<art> S32C1I<art> S32E<art> S32I<art> S32RI<art> S8I<art> SDCT<art> 
+    SICT<art> SICW<art> SRA<art> SRAI<art> SRC<art> SRL<art> SRLI<art> 
+    SSX<art> SSXU<art> SUB<art> SUBX2<art> SUBX4<art> SUBX8<art> 
+    UMUL.AA.HH<art> UMUL.AA.HL<art> UMUL.AA.LH<art> UMUL.AA.LL<art> 
+    WDTLB<art> WITLB<art> WSR.176<art> WSR.ACCHI<art> WSR.ACCLO<art> 
+    WSR.ATOMCTL<art> WSR.BR<art> WSR.CPENABLE<art> WSR.DEPC<art> 
+    WSR.EPC1<art> WSR.EXCCAUSE<art> WSR.EXCSAVE1<art> WSR.EXCVADDR<art> 
+    WSR.LBEG<art> WSR.LCOUNT<art> WSR.LEND<art> WSR.LITBASE<art> 
+    WSR.M0<art> WSR.M1<art> WSR.M2<art> WSR.M3<art> WSR.PS<art> 
+    WSR.SAR<art> WSR.SCOMPARE1<art> WSR.VECBASE<art> WSR.WINDOWBASE<art> 
+    WSR.WINDOWSTART<art> WUR.FCR<art> WUR.FSR<art> XOR<art> XSR.ACCHI<art> 
+    XSR.ACCLO<art> XSR.ATOMCTL<art> XSR.BR<art> XSR.CPENABLE<art> 
+    XSR.DEPC<art> XSR.EPC1<art> XSR.EXCCAUSE<art> XSR.EXCSAVE1<art> 
+    XSR.EXCVADDR<art> XSR.LBEG<art> XSR.LCOUNT<art> XSR.LEND<art> 
+    XSR.LITBASE<art> XSR.M0<art> XSR.M1<art> XSR.M2<art> XSR.M3<art> 
+    XSR.PS<art> XSR.SAR<art> XSR.SCOMPARE1<art> XSR.VECBASE<art> 
+    XSR.WINDOWBASE<art> XSR.WINDOWSTART<art> 
+  regfile AR: port rd1: slot #0 Inst16a
+    ADD.N<art> S32I.N<art> 
+  regfile AR: port wr0: slot #0 Inst
+    ABS<arr> ADD<arr> ADDI<art> ADDMI<art> ADDX2<arr> ADDX4<arr> ADDX8<arr> 
+    AND<arr> CALL0<ar0> CALL12<ar12> CALL4<ar4> CALL8<ar8> CALLX0<ar0> 
+    CALLX12<ar12> CALLX4<ar4> CALLX8<ar8> CEIL.S<arr> CLAMPS<arr> 
+    ENTRY<ars> ENTRY<ars_entry> EXTUI<arr> FLOOR.S<arr> L16SI<art> 
+    L16UI<art> L32AI<art> L32E<art> L32I<art> L32R<art> L8UI<art> LDCT<art> 
+    LDDEC<ars> LDINC<ars> LICT<art> LICW<art> LSIU<ars> LSXU<ars> MAX<arr> 
+    MAXU<arr> MIN<arr> MINU<arr> MOVEQZ<arr> MOVF<arr> MOVGEZ<arr> 
+    MOVI<art> MOVLTZ<arr> MOVNEZ<arr> MOVSP<art> MOVT<arr> MUL16S<arr> 
+    MUL16U<arr> MULA.DA.HH.LDDEC<ars> MULA.DA.HH.LDINC<ars> 
+    MULA.DA.HL.LDDEC<ars> MULA.DA.HL.LDINC<ars> MULA.DA.LH.LDDEC<ars> 
+    MULA.DA.LH.LDINC<ars> MULA.DA.LL.LDDEC<ars> MULA.DA.LL.LDINC<ars> 
+    MULA.DD.HH.LDDEC<ars> MULA.DD.HH.LDINC<ars> MULA.DD.HL.LDDEC<ars> 
+    MULA.DD.HL.LDINC<ars> MULA.DD.LH.LDDEC<ars> MULA.DD.LH.LDINC<ars> 
+    MULA.DD.LL.LDDEC<ars> MULA.DD.LL.LDINC<ars> MULL<arr> MULSH<arr> 
+    MULUH<arr> NEG<arr> NSA<art> NSAU<art> OR<arr> PDTLB<art> PITLB<art> 
+    RDTLB0<art> RDTLB1<art> RECV1<arr> RECV2<arr> RECV3<arr> RFR<arr> 
+    RITLB0<art> RITLB1<art> ROUND.S<arr> RSR.176<art> RSR.208<art> 
+    RSR.ACCHI<art> RSR.ACCLO<art> RSR.ATOMCTL<art> RSR.BR<art> 
+    RSR.CPENABLE<art> RSR.DEPC<art> RSR.EPC1<art> RSR.EXCCAUSE<art> 
+    RSR.EXCSAVE1<art> RSR.EXCVADDR<art> RSR.LBEG<art> RSR.LCOUNT<art> 
+    RSR.LEND<art> RSR.LITBASE<art> RSR.M0<art> RSR.M1<art> RSR.M2<art> 
+    RSR.M3<art> RSR.PS<art> RSR.SAR<art> RSR.SCOMPARE1<art> 
+    RSR.VECBASE<art> RSR.WINDOWBASE<art> RSR.WINDOWSTART<art> RUR.FCR<arr> 
+    RUR.FSR<arr> S32C1I<art> SEXT<arr> SLL<arr> SLLI<arr> SRA<arr> 
+    SRAI<arr> SRC<arr> SRL<arr> SRLI<arr> SSIU<ars> SSXU<ars> SUB<arr> 
+    SUBX2<arr> SUBX4<arr> SUBX8<arr> TRUNC.S<arr> UTRUNC.S<arr> XOR<arr> 
+    XSR.ACCHI<art> XSR.ACCLO<art> XSR.ATOMCTL<art> XSR.BR<art> 
+    XSR.CPENABLE<art> XSR.DEPC<art> XSR.EPC1<art> XSR.EXCCAUSE<art> 
+    XSR.EXCSAVE1<art> XSR.EXCVADDR<art> XSR.LBEG<art> XSR.LCOUNT<art> 
+    XSR.LEND<art> XSR.LITBASE<art> XSR.M0<art> XSR.M1<art> XSR.M2<art> 
+    XSR.M3<art> XSR.PS<art> XSR.SAR<art> XSR.SCOMPARE1<art> 
+    XSR.VECBASE<art> XSR.WINDOWBASE<art> XSR.WINDOWSTART<art> 
+  regfile AR: port wr0: slot #0 Inst16a
+    ADD.N<arr> ADDI.N<arr> L32I.N<art> 
+  regfile AR: port wr0: slot #0 Inst16b
+    MOV.N<art> MOVI.N<ars> 
+regfile MR:
+  regfile MR: port rd0: slot #0 Inst
+    MUL.DA.HH<mx> MUL.DA.HL<mx> MUL.DA.LH<mx> MUL.DA.LL<mx> MUL.DD.HH<mx> 
+    MUL.DD.HL<mx> MUL.DD.LH<mx> MUL.DD.LL<mx> MULA.DA.HH.LDDEC<mx> 
+    MULA.DA.HH.LDINC<mx> MULA.DA.HH<mx> MULA.DA.HL.LDDEC<mx> 
+    MULA.DA.HL.LDINC<mx> MULA.DA.HL<mx> MULA.DA.LH.LDDEC<mx> 
+    MULA.DA.LH.LDINC<mx> MULA.DA.LH<mx> MULA.DA.LL.LDDEC<mx> 
+    MULA.DA.LL.LDINC<mx> MULA.DA.LL<mx> MULA.DD.HH.LDDEC<mx> 
+    MULA.DD.HH.LDINC<mx> MULA.DD.HH<mx> MULA.DD.HL.LDDEC<mx> 
+    MULA.DD.HL.LDINC<mx> MULA.DD.HL<mx> MULA.DD.LH.LDDEC<mx> 
+    MULA.DD.LH.LDINC<mx> MULA.DD.LH<mx> MULA.DD.LL.LDDEC<mx> 
+    MULA.DD.LL.LDINC<mx> MULA.DD.LL<mx> MULS.DA.HH<mx> MULS.DA.HL<mx> 
+    MULS.DA.LH<mx> MULS.DA.LL<mx> MULS.DD.HH<mx> MULS.DD.HL<mx> 
+    MULS.DD.LH<mx> MULS.DD.LL<mx> RSR.M0<mr0> RSR.M1<mr1> RSR.M2<mr2> 
+    RSR.M3<mr3> XSR.M0<mr0> XSR.M1<mr1> XSR.M2<mr2> XSR.M3<mr3> 
+  regfile MR: port rd1: slot #0 Inst
+    MUL.AD.HH<my> MUL.AD.HL<my> MUL.AD.LH<my> MUL.AD.LL<my> MUL.DD.HH<my> 
+    MUL.DD.HL<my> MUL.DD.LH<my> MUL.DD.LL<my> MULA.AD.HH<my> MULA.AD.HL<my> 
+    MULA.AD.LH<my> MULA.AD.LL<my> MULA.DD.HH.LDDEC<my> MULA.DD.HH.LDINC<my> 
+    MULA.DD.HH<my> MULA.DD.HL.LDDEC<my> MULA.DD.HL.LDINC<my> MULA.DD.HL<my> 
+    MULA.DD.LH.LDDEC<my> MULA.DD.LH.LDINC<my> MULA.DD.LH<my> 
+    MULA.DD.LL.LDDEC<my> MULA.DD.LL.LDINC<my> MULA.DD.LL<my> MULS.AD.HH<my> 
+    MULS.AD.HL<my> MULS.AD.LH<my> MULS.AD.LL<my> MULS.DD.HH<my> 
+    MULS.DD.HL<my> MULS.DD.LH<my> MULS.DD.LL<my> 
+  regfile MR: port wr0: slot #0 Inst
+    LDDEC<mw> LDINC<mw> MULA.DA.HH.LDDEC<mw> MULA.DA.HH.LDINC<mw> 
+    MULA.DA.HL.LDDEC<mw> MULA.DA.HL.LDINC<mw> MULA.DA.LH.LDDEC<mw> 
+    MULA.DA.LH.LDINC<mw> MULA.DA.LL.LDDEC<mw> MULA.DA.LL.LDINC<mw> 
+    MULA.DD.HH.LDDEC<mw> MULA.DD.HH.LDINC<mw> MULA.DD.HL.LDDEC<mw> 
+    MULA.DD.HL.LDINC<mw> MULA.DD.LH.LDDEC<mw> MULA.DD.LH.LDINC<mw> 
+    MULA.DD.LL.LDDEC<mw> MULA.DD.LL.LDINC<mw> WSR.M0<mr0> WSR.M1<mr1> 
+    WSR.M2<mr2> WSR.M3<mr3> XSR.M0<mr0> XSR.M1<mr1> XSR.M2<mr2> XSR.M3<mr3> 
+regfile BR:
+  regfile BR: port rd0: slot #0 Inst
+    ALL4<bs4> ALL8<bs8> ANDB<bt> ANDBC<bt> ANY4<bs4> ANY8<bs8> MOVF.S<bt> 
+    MOVF<bt> MOVT.S<bt> MOVT<bt> ORB<bt> ORBC<bt> RSR.BR<brall> XORB<bt> 
+    XSR.BR<brall> 
+  regfile BR: port rd1: slot #0 Inst
+    ANDB<bs> ANDBC<bs> BF<bs> BT<bs> ORB<bs> ORBC<bs> XORB<bs> 
+  regfile BR: port wr0: slot #0 Inst
+    ALL4<bt> ALL8<bt> ANDB<br> ANDBC<br> ANY4<bt> ANY8<bt> OEQ.S<br> 
+    OLE.S<br> OLT.S<br> ORB<br> ORBC<br> UEQ.S<br> ULE.S<br> ULT.S<br> 
+    UN.S<br> WSR.BR<brall> XORB<br> XSR.BR<brall> 
+regfile FR:
+  regfile FR: port rd0: slot #0 Inst
+    MADD.S<frr> MSUB.S<frr> SSX<frr> SSXU<frr> 
+  regfile FR: port rd1: slot #0 Inst
+    ABS.S<frs> ADD.S<frs> CEIL.S<frs> FLOOR.S<frs> MADD.S<frs> MOV.S<frs> 
+    MOVEQZ.S<frs> MOVF.S<frs> MOVGEZ.S<frs> MOVLTZ.S<frs> MOVNEZ.S<frs> 
+    MOVT.S<frs> MSUB.S<frs> MUL.S<frs> NEG.S<frs> OEQ.S<frs> OLE.S<frs> 
+    OLT.S<frs> RFR<frs> ROUND.S<frs> SUB.S<frs> TRUNC.S<frs> UEQ.S<frs> 
+    ULE.S<frs> ULT.S<frs> UN.S<frs> UTRUNC.S<frs> 
+  regfile FR: port rd2: slot #0 Inst
+    ADD.S<frt> MADD.S<frt> MSUB.S<frt> MUL.S<frt> OEQ.S<frt> OLE.S<frt> 
+    OLT.S<frt> SSI<frt> SSIU<frt> SUB.S<frt> UEQ.S<frt> ULE.S<frt> 
+    ULT.S<frt> UN.S<frt> 
+  regfile FR: port wr0: slot #0 Inst
+    ABS.S<frr> ADD.S<frr> FLOAT.S<frr> LSI<frt> LSIU<frt> LSX<frr> 
+    LSXU<frr> MADD.S<frr> MOV.S<frr> MOVEQZ.S<frr> MOVF.S<frr> 
+    MOVGEZ.S<frr> MOVLTZ.S<frr> MOVNEZ.S<frr> MOVT.S<frr> MSUB.S<frr> 
+    MUL.S<frr> NEG.S<frr> SUB.S<frr> UFLOAT.S<frr> WFR<frr> 

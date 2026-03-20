@@ -1,0 +1,10 @@
+queue FIFO_IN1 32 in
+queue FIFO_IN2 16 in
+queue FIFO_OUT1 8 out
+queue FIFO_OUT2 1 out
+
+operation RECV1 {out AR mes} {in FIFO_IN1} {assign mes = FIFO_IN1; }
+operation RECV2 {out AR mes} {in FIFO_IN2} {assign mes = FIFO_IN2; }
+operation SEND1 {in AR mes} {out FIFO_OUT1} {assign FIFO_OUT1 = mes; }
+operation SEND2 {in AR mes} {out FIFO_OUT2} {assign FIFO_OUT2 = mes; }
+operation DUMMY {} {} {}

@@ -1,5 +1,0 @@
-test_vectors/test_24x24.raw
-50
-3
-24
-24

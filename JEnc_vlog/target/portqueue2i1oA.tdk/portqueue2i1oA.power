@@ -1,0 +1,60 @@
+ 
+----------------------------- DISCLAIMER ------------------------------
+The power reported here is an estimate of the actual power.
+The actual power should be obtained using hardware power analysis tools.
+The actual power depends on many factors beyond the control of the
+estimator. These factors include but are not limited to 
+technology process, standard cell library, synthesis tool quality,
+synthesis scripts, optimization switches, MHz / performance goal,
+and power goal. Furthermore, the power reported here is in pJ/cycle (uW/MHz)
+for 0.13 micron lv technology.
+
+Every attempt has been made to provide an accurate estimate, however,
+the actual power may vary. TIE developer is advised to rely on the 
+power estimate during the early phases of the design and validate the
+estimated power using hardware synthesis tool as design attains maturity.
+------------------------------ DISCLAIMER ------------------------------
+
+    4898 TIE
+            1666 TIE_decoder (34.01%)
+               0 TIE_AR_Regfile [additional power] (0.00%)
+              70 TIE_slot0_semantic_RECV1 (1.43%)
+              70 TIE_slot0_semantic_RECV2 (1.43%)
+              70 TIE_slot0_semantic_SEND (1.43%)
+               0 TIE_slot0_semantic_DUMMY (0.00%)
+               0 TIE_port_FIFO_IN1_Empty (0.00%)
+            1082 TIE_port_FIFO_IN1 (22.09%)
+               0 TIE_port_FIFO_IN2_Empty (0.00%)
+             552 TIE_port_FIFO_IN2 (11.27%)
+               0 TIE_port_FIFO_OUT_Full (0.00%)
+             552 TIE_port_FIFO_OUT (11.27%)
+             836 TIE toplogic for muxing and pipeline management (17.07%)
+
+
+  ACTIVATED BLOCK POWER BEGIN
+
+  decoder     1.666 toplogic    0.836
+  Instruction                            core semantic    state  regfile
+  RECV1                                   nop    0.070    0.000    0.000
+  RECV2                                   nop    0.070    0.000    0.000
+  SEND                                    nop    0.070    0.000    0.000
+  DUMMY                                   nop    0.000    0.000    0.000
+
+
+  ACTIVATED BLOCK POWER END
+
+
+
+  INSTRUCTION POWER BEGIN
+
+  recv1                                   nop    0.063
+  recv2                                   nop    0.063
+  send                                    nop    0.063
+  dummy                                   nop    0.000
+
+
+  INSTRUCTION POWER END
+
+
+
+cpu_seconds 0.15

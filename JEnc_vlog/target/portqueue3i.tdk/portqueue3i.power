@@ -1,0 +1,66 @@
+ 
+----------------------------- DISCLAIMER ------------------------------
+The power reported here is an estimate of the actual power.
+The actual power should be obtained using hardware power analysis tools.
+The actual power depends on many factors beyond the control of the
+estimator. These factors include but are not limited to 
+technology process, standard cell library, synthesis tool quality,
+synthesis scripts, optimization switches, MHz / performance goal,
+and power goal. Furthermore, the power reported here is in pJ/cycle (uW/MHz)
+for 0.13 micron lv technology.
+
+Every attempt has been made to provide an accurate estimate, however,
+the actual power may vary. TIE developer is advised to rely on the 
+power estimate during the early phases of the design and validate the
+estimated power using hardware synthesis tool as design attains maturity.
+------------------------------ DISCLAIMER ------------------------------
+
+    3458 TIE
+            1666 TIE_decoder (48.18%)
+               0 TIE_AR_Regfile [additional power] (0.00%)
+              70 TIE_slot0_semantic_RECV1 (2.02%)
+              70 TIE_slot0_semantic_RECV2 (2.02%)
+              70 TIE_slot0_semantic_IS_FIFO2EMPTY (2.02%)
+              70 TIE_slot0_semantic_RECV3 (2.02%)
+              70 TIE_slot0_semantic_IS_FIFO3EMPTY (2.02%)
+               0 TIE_slot0_semantic_DUMMY (0.00%)
+               0 TIE_port_FIFO_IN1_Empty (0.00%)
+             198 TIE_port_FIFO_IN1 (5.73%)
+               0 TIE_port_FIFO_IN2_Empty (0.00%)
+             198 TIE_port_FIFO_IN2 (5.73%)
+               0 TIE_port_FIFO_IN3_Empty (0.00%)
+              32 TIE_port_FIFO_IN3 (0.93%)
+            1014 TIE toplogic for muxing and pipeline management (29.32%)
+
+
+  ACTIVATED BLOCK POWER BEGIN
+
+  decoder     1.666 toplogic    1.014
+  Instruction                            core semantic    state  regfile
+  RECV1                                   nop    0.070    0.000    0.000
+  RECV2                                   nop    0.070    0.000    0.000
+  IS_FIFO2EMPTY                           nop    0.070    0.000    0.000
+  RECV3                                   nop    0.070    0.000    0.000
+  IS_FIFO3EMPTY                           nop    0.070    0.000    0.000
+  DUMMY                                   nop    0.000    0.000    0.000
+
+
+  ACTIVATED BLOCK POWER END
+
+
+
+  INSTRUCTION POWER BEGIN
+
+  recv1                                   nop    0.063
+  recv2                                   nop    0.063
+  is_fifo2empty                           nop    0.063
+  recv3                                   nop    0.063
+  is_fifo3empty                           nop    0.063
+  dummy                                   nop    0.000
+
+
+  INSTRUCTION POWER END
+
+
+
+cpu_seconds 0.13

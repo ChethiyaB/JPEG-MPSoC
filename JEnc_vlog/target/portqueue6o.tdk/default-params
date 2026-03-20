@@ -1,0 +1,15 @@
+iss-tie-dll=lib-i686-Linux/libcas-portqueue6o.so
+fiss-base-dll=lib-i686-Linux/libfiss-portqueue6o.so
+fiss-ref-base-dll=
+isa-tie-dll=lib-i686-Linux/libisa-portqueue6o.so
+ctype-tie-dll=lib-i686-Linux/libctype-portqueue6o.so
+xml-tie-dll=lib-i686-Linux/libtie-portqueue6o.so
+xtensa-tie-header=include/xtensa/tie/portqueue6o.h
+tie-includedir=include
+tie-ident=493591
+tdk-dir=.
+IsaUseWideBranches = 0
+tie-checksum-0 = 0x2be27ee3
+tie-checksum-1 = 0xdc427229
+tie-checksum-2 = 0x38e442d8
+tie-checksum-3 = 0x5242981b

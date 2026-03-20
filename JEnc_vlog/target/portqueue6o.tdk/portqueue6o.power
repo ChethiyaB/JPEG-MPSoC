@@ -1,0 +1,75 @@
+ 
+----------------------------- DISCLAIMER ------------------------------
+The power reported here is an estimate of the actual power.
+The actual power should be obtained using hardware power analysis tools.
+The actual power depends on many factors beyond the control of the
+estimator. These factors include but are not limited to 
+technology process, standard cell library, synthesis tool quality,
+synthesis scripts, optimization switches, MHz / performance goal,
+and power goal. Furthermore, the power reported here is in pJ/cycle (uW/MHz)
+for 0.13 micron lv technology.
+
+Every attempt has been made to provide an accurate estimate, however,
+the actual power may vary. TIE developer is advised to rely on the 
+power estimate during the early phases of the design and validate the
+estimated power using hardware synthesis tool as design attains maturity.
+------------------------------ DISCLAIMER ------------------------------
+
+    6572 TIE
+            1678 TIE_decoder (25.53%)
+               0 TIE_AR_Regfile [additional power] (0.00%)
+              70 TIE_slot0_semantic_SEND1 (1.07%)
+              70 TIE_slot0_semantic_SEND2 (1.07%)
+              70 TIE_slot0_semantic_SEND3 (1.07%)
+              70 TIE_slot0_semantic_SEND4 (1.07%)
+              70 TIE_slot0_semantic_SEND5 (1.07%)
+              70 TIE_slot0_semantic_SEND6 (1.07%)
+               0 TIE_slot0_semantic_DUMMY (0.00%)
+               0 TIE_port_FIFO_OUT1_Full (0.00%)
+             552 TIE_port_FIFO_OUT1 (8.40%)
+               0 TIE_port_FIFO_OUT2_Full (0.00%)
+             552 TIE_port_FIFO_OUT2 (8.40%)
+               0 TIE_port_FIFO_OUT3_Full (0.00%)
+             552 TIE_port_FIFO_OUT3 (8.40%)
+               0 TIE_port_FIFO_OUT4_Full (0.00%)
+            1082 TIE_port_FIFO_OUT4 (16.46%)
+               0 TIE_port_FIFO_OUT5_Full (0.00%)
+            1082 TIE_port_FIFO_OUT5 (16.46%)
+               0 TIE_port_FIFO_OUT6_Full (0.00%)
+             198 TIE_port_FIFO_OUT6 (3.01%)
+             456 TIE toplogic for muxing and pipeline management (6.94%)
+
+
+  ACTIVATED BLOCK POWER BEGIN
+
+  decoder     1.678 toplogic    0.456
+  Instruction                            core semantic    state  regfile
+  SEND1                                   nop    0.070    0.000    0.000
+  SEND2                                   nop    0.070    0.000    0.000
+  SEND3                                   nop    0.070    0.000    0.000
+  SEND4                                   nop    0.070    0.000    0.000
+  SEND5                                   nop    0.070    0.000    0.000
+  SEND6                                   nop    0.070    0.000    0.000
+  DUMMY                                   nop    0.000    0.000    0.000
+
+
+  ACTIVATED BLOCK POWER END
+
+
+
+  INSTRUCTION POWER BEGIN
+
+  send1                                   nop    0.063
+  send2                                   nop    0.063
+  send3                                   nop    0.063
+  send4                                   nop    0.063
+  send5                                   nop    0.063
+  send6                                   nop    0.063
+  dummy                                   nop    0.000
+
+
+  INSTRUCTION POWER END
+
+
+
+cpu_seconds 0.09

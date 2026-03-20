@@ -1,0 +1,17 @@
+
+package "portqueue6o" ""
+queue FIFO_OUT1 16 out
+queue FIFO_OUT2 16 out
+queue FIFO_OUT3 16 out
+queue FIFO_OUT4 32 out
+queue FIFO_OUT5 32 out
+queue FIFO_OUT6 8 out
+
+operation SEND1 {in AR mes} {out FIFO_OUT1} {assign FIFO_OUT1 = mes; }
+operation SEND2 {in AR mes} {out FIFO_OUT2} {assign FIFO_OUT2 = mes; }
+operation SEND3 {in AR mes} {out FIFO_OUT3} {assign FIFO_OUT3 = mes; }
+operation SEND4 {in AR mes} {out FIFO_OUT4} {assign FIFO_OUT4 = mes; }
+operation SEND5 {in AR mes} {out FIFO_OUT5} {assign FIFO_OUT5 = mes; }
+operation SEND6 {in AR mes} {out FIFO_OUT6} {assign FIFO_OUT6 = mes; }
+operation DUMMY {} {} {}
+endpackage "portqueue6o"

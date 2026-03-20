@@ -1,0 +1,11 @@
+
+package "portqueue1i1o" ""
+queue FIFO_IN 16 in
+queue FIFO_OUT 16 out
+
+operation RECV {out AR mes} {in FIFO_IN} {assign mes = FIFO_IN; }
+operation SEND {in AR mes} {out FIFO_OUT} {assign FIFO_OUT = mes; }
+operation IS_FIFOEMPTY {out BR b} {in FIFO_IN_NOTRDY} {assign b = FIFO_IN_NOTRDY; }
+operation IS_FIFOFULL {out BR b} {in FIFO_OUT_NOTRDY} {assign b = FIFO_OUT_NOTRDY; }
+operation DUMMY {} {} {}
+endpackage "portqueue1i1o"

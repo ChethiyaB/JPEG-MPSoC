@@ -1,0 +1,15 @@
+iss-tie-dll=lib-i686-Linux/libcas-portqueue2i1oA.so
+fiss-base-dll=lib-i686-Linux/libfiss-portqueue2i1oA.so
+fiss-ref-base-dll=
+isa-tie-dll=lib-i686-Linux/libisa-portqueue2i1oA.so
+ctype-tie-dll=lib-i686-Linux/libctype-portqueue2i1oA.so
+xml-tie-dll=lib-i686-Linux/libtie-portqueue2i1oA.so
+xtensa-tie-header=include/xtensa/tie/portqueue2i1oA.h
+tie-includedir=include
+tie-ident=3072651
+tdk-dir=.
+IsaUseWideBranches = 0
+tie-checksum-0 = 0xdb723a19
+tie-checksum-1 = 0x54682a7b
+tie-checksum-2 = 0x32f8be50
+tie-checksum-3 = 0xd919c611
