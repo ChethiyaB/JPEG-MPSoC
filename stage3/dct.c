@@ -1,58 +1,63 @@
-#include <math.h>
 #include "nios2_common/datatype.h"
+#include <math.h>
 
-// 1. Precomputed Look-Up Tables (LUTs)
-static float cos_lut[8][8];
-static float alpha_lut[8];
+// 1. Precomputed Look-Up Tables (LUTs) in Fixed-Point (Q8 precision)
+// Scale factor = 256 (which is 1 << 8)
+static int C_lut[8][8];
 static int lut_initialized = 0;
 
-// Calculate the heavy math exactly ONCE
 void init_dct_lut() {
-    int i, j;
-    for (i = 0; i < 8; i++) {
-        for (j = 0; j < 8; j++) {
-            // Note: We use 'float' casting to avoid heavy 'double' precision math
-            cos_lut[i][j] = (float)cos((2.0 * i + 1.0) * j * 3.14159265358979323846 / 16.0);
+    int u, x;
+    float alpha_u;
+
+    // We use math.h ONLY ONCE during startup to generate the integer tables!
+    for (u = 0; u < 8; u++) {
+        if (u == 0) alpha_u = 1.0f / sqrtf(2.0f);
+        else        alpha_u = 1.0f;
+
+        for (x = 0; x < 8; x++) {
+            // C(u,x) = 0.5 * alpha(u) * cos( (2x+1)*u*PI / 16 )
+            float val = 0.5f * alpha_u * cosf((2.0f * x + 1.0f) * u * 3.14159265358979323846f / 16.0f);
+
+            // Multiply by 256 to convert to Q8 integer format
+            C_lut[u][x] = (int)(val * 256.0f);
         }
     }
-
-    // Precompute alpha values to avoid sqrt() in the loop
-    alpha_lut[0] = 1.0f / (float)sqrt(2.0);
-    for (i = 1; i < 8; i++) {
-        alpha_lut[i] = 1.0f;
-    }
-
     lut_initialized = 1;
 }
 
 void dct(INT16 *block) {
-    // Ensure tables are built on the very first run
     if (!lut_initialized) {
         init_dct_lut();
     }
 
-    float temp[8][8];
+    int temp[8][8];
     int u, v, x, y;
 
-    // Calculate DCT using Look-Up Tables
+    // --- PASS 1: 1D DCT ON ROWS ---
     for (u = 0; u < 8; u++) {
         for (v = 0; v < 8; v++) {
-            float sum = 0.0f;
+            int sum = 0;
             for (x = 0; x < 8; x++) {
-                for (y = 0; y < 8; y++) {
-                    // FAST: Array memory reads instead of 24,000 cos() calls!
-                    sum += (float)block[x * 8 + y] * cos_lut[x][u] * cos_lut[y][v];
-                }
+                // C_lut is Q8, block is Q0. sum accumulates as Q8.
+                sum += C_lut[u][x] * block[x * 8 + v];
             }
-            temp[u][v] = 0.25f * alpha_lut[u] * alpha_lut[v] * sum;
+            temp[u][v] = sum; 
         }
     }
 
-    // Copy the transformed frequency coefficients back
+    // --- PASS 2: 1D DCT ON COLUMNS ---
     for (u = 0; u < 8; u++) {
         for (v = 0; v < 8; v++) {
-            // roundf() is faster than double-precision round()
-            block[u * 8 + v] = (INT16)roundf(temp[u][v]);
+            int sum = 0;
+            for (y = 0; y < 8; y++) {
+                // temp is Q8, C_lut is Q8. sum accumulates as Q16.
+                sum += temp[u][y] * C_lut[v][y];
+            }
+
+            // Shift back from Q16 to Q0 integer space.
+            // Adding (1 << 15) before shifting perfectly rounds the integer!
+            block[u * 8 + v] = (INT16)((sum + 32768) >> 16);
         }
     }
 }

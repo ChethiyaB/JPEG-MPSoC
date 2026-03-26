@@ -1,0 +1,13 @@
+4
+/mnt/host/files/test_8x8.bmp
+/mnt/host/files/output_8x8.jpg
+85
+/mnt/host/files/test_32x32.bmp
+/mnt/host/files/output_32x32.jpg
+85
+/mnt/host/files/test_64x64.bmp
+/mnt/host/files/output_64x64.jpg
+85
+/mnt/host/files/test_128x128.bmp
+/mnt/host/files/output_128x128.jpg
+85

@@ -1,5 +1,6 @@
 #include "system.h"
 #include <stdio.h>
+#include <sys/alt_timestamp.h>
 #include "nios2_common/datatype.h"
 #include "nios2_common/fifo_io.h"
 
@@ -34,46 +35,65 @@ int main() {
     fifo_init(FIFO_OUT_CSR_BASE);
     fifo_init(FIFO_1_IN_CSR_BASE);
 
-    receive_dqt_from_stage1();
-    
-    // --- DYNAMIC DIMENSION DAISY-CHAIN ---
-    INT16 dimension_packet[2];
-    fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, dimension_packet, 2);
-    int width = (int)dimension_packet[0];
-    int height = (int)dimension_packet[1];
-    int total_mcus = ((width + 7) / 8) * ((height + 7) / 8);
-    fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, dimension_packet, 2);
-    // -------------------------------------
+    int image_counter = 1;
 
-INT16 Y_in[64], Cb_in[64], Cr_in[64];
-INT16 Y_out[64], Cb_out[64], Cr_out[64];
+    // --- INFINITE BATCH PROCESSING LOOP ---
+    while (1) {
+        printf("\nStage 4: Ready for Image #%d...\n", image_counter++);
 
-int i;
-for (i = 0; i < total_mcus; i++) {
-    fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, Y_in, 64);
-    fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, Cb_in, 64);
-    fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, Cr_in, 64);
-        
-    quantization(Y_in, dynamic_q_table_luma, Y_out);
-    quantization(Cb_in, dynamic_q_table_chroma, Cb_out);
-    quantization(Cr_in, dynamic_q_table_chroma, Cr_out);
+        // Grab fresh tables from Master Controller for this specific image
+        receive_dqt_from_stage1();
 
-    if (i == 0) {
-        int k;
-        printf("Stage 4: MCU0 Y[0..7] after Quant: ");
-        for (k = 0; k < 8; k++) printf("%d ", Y_out[k]);
-        printf("\n");
-        printf("Stage 4: MCU0 Cb[0..7] after Quant: ");
-        for (k = 0; k < 8; k++) printf("%d ", Cb_out[k]);
-        printf("\n");
-        printf("Stage 4: MCU0 Cr[0..7] after Quant: ");
-        for (k = 0; k < 8; k++) printf("%d ", Cr_out[k]);
-        printf("\n");
+        // --- DYNAMIC DIMENSION DAISY-CHAIN ---
+        INT16 dimension_packet[2];
+        fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, dimension_packet, 2);
+        int width = (int)dimension_packet[0];
+        int height = (int)dimension_packet[1];
+        int total_mcus = ((width + 7) / 8) * ((height + 7) / 8);
+        fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, dimension_packet, 2);
+        // -------------------------------------
+
+        INT16 Y_in[64], Cb_in[64], Cr_in[64];
+        INT16 Y_out[64], Cb_out[64], Cr_out[64];
+
+        //---START TIMER---
+        if (alt_timestamp_start() < 0) printf("Timer Error!\n");
+        alt_u32 start_time = alt_timestamp();
+
+        int i;
+        for (i = 0; i < total_mcus; i++) {
+            fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, Y_in, 64);
+            fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, Cb_in, 64);
+            fifo_read_block(FIFO_IN_BASE, FIFO_IN_CSR_BASE, Cr_in, 64);
+
+            quantization(Y_in, dynamic_q_table_luma, Y_out);
+            quantization(Cb_in, dynamic_q_table_chroma, Cb_out);
+            quantization(Cr_in, dynamic_q_table_chroma, Cr_out);
+
+            // --- FIXED: WRITE IMMEDIATELY TO STAGE 5 ---
+            fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, Y_out, 64);
+            fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, Cb_out, 64);
+            fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, Cr_out, 64);
+        }
+
+        //---STOP TIMER---
+        alt_u32 end_time = alt_timestamp();
+        alt_u32 ticks = end_time - start_time;
+        if (ticks == 0) ticks = 1;
+
+        // --- SAFE MATH TO PREVENT OVERFLOW ---
+        alt_u32 freq = alt_timestamp_freq();
+        float secs = (float)ticks / (float)freq;
+        alt_u32 time_ms = (alt_u32)(secs * 1000.0f);
+
+        int total_raw_bytes = width * height * 3;
+        alt_u32 throughput = (alt_u32)((float)total_raw_bytes / secs);
+
+        printf("--- STAGE 4 BENCHMARK ---\n");
+        printf("Total Clock Cycles : %lu\n", ticks);
+        printf("Total Time         : %lu milliseconds\n", time_ms);
+        printf("Throughput         : %lu Raw Bytes/sec\n", throughput);
     }
-        
-    fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, Y_out, 64);
-    fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, Cb_out, 64);
-    fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, Cr_out, 64);
-}
-return 0;
+
+    return 0;
 }

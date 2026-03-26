@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/alt_timestamp.h>
 #include "nios2_common/datatype.h"
 #include "nios2_common/fifo_io.h"
 #include "huffdata.h"
@@ -16,24 +17,30 @@
 #define FIFO_OUT_TO_5_BASE      FIFO_1_TO_5_IN_BASE
 #define FIFO_OUT_TO_5_CSR_BASE  FIFO_1_TO_5_IN_CSR_BASE
 
-// --- TEMPLATES AND TABLES ---
+// --- GLOBAL BUFFERS TO PREVENT STACK OVERFLOW ---
+UINT8 global_dynamic_header[623];
+UINT8 global_strip_buffer[1536];
+UINT8 global_row_data[128];
+UINT8 global_scaled_q_luma[64];
+UINT8 global_scaled_q_chroma[64];
 
+// --- BUFFER FOR FAST-PATH SMALL IMAGES (32x32x3 = 3072 bytes) ---
+UINT8 global_full_image_buffer[3072];
+
+// --- TEMPLATES AND TABLES ---
 const UINT8 full_jpeg_headers_template[623] = {
     0xFF, 0xD8,
     0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
-    // DQT0 (Luma) - Starts at index 25
     0xFF, 0xDB, 0x00, 0x43, 0x00,
     16, 11, 12, 14, 12, 10, 16, 14, 13, 14, 18, 17, 16, 19, 24, 40,
     26, 24, 22, 22, 24, 49, 35, 37, 29, 40, 58, 51, 61, 60, 57, 51,
     56, 55, 64, 72, 92, 78, 64, 68, 87, 69, 55, 56, 80, 109, 81, 87,
     95, 98, 103, 104, 103, 62, 77, 113, 121, 112, 100, 120, 92, 101, 103, 99,
-    // DQT1 (Chroma) - Starts at index 94
     0xFF, 0xDB, 0x00, 0x43, 0x01,
     17, 18, 18, 24, 21, 24, 47, 26, 26, 47, 99, 66, 56, 66, 99, 99,
     99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99,
     99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99,
     99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99,
-    // SOF0 - Starts at index 158
     0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x18, 0x00, 0x18, 0x03,
     0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
     0xFF, 0xC4, 0x00, 0x1F, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -47,7 +54,6 @@ const UINT8 full_jpeg_headers_template[623] = {
     0xFF, 0xDA, 0x00, 0x0C, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3F, 0x00
 };
 
-// Base Row-Major Q50 Tables
 const UINT8 q_table_luma[64] = {
     16, 11, 10, 16, 24, 40, 51, 61, 12, 12, 14, 19, 26, 58, 60, 55,
     14, 13, 16, 24, 40, 57, 69, 56, 14, 17, 22, 29, 51, 87, 80, 62,
@@ -69,8 +75,6 @@ const int ZIGZAG[64] = {
     58, 52, 45, 38, 31, 39, 46, 53, 59, 60, 61, 54, 47, 55, 62, 63
 };
 
-// --- AUTO-DETECTION PARSER ---
-
 int parse_image_header(FILE *file, int *width, int *height, int *pixel_offset, int *bpp) {
     unsigned char header[54];
     if (fread(header, 1, 54, file) < 54) { rewind(file); return 0; }
@@ -85,18 +89,15 @@ int parse_image_header(FILE *file, int *width, int *height, int *pixel_offset, i
     return 0;
 }
 
-// --- DATA DISPATCH FUNCTIONS ---
-
-void send_dqt_to_stage4(UINT8 *luma_q, UINT8 *chroma_q) {
-    printf("Stage 1: Sending Scaled Quantization Tables to Stage 4...\n");
+void send_dqt_to_stage4() {
     INT16 send_buffer[1];
     int i;
     for (i = 0; i < 64; i++) {
-        send_buffer[0] = (INT16)luma_q[i];
+        send_buffer[0] = (INT16)global_scaled_q_luma[i];
         fifo_write_block(FIFO_OUT_TO_4_BASE, FIFO_OUT_TO_4_CSR_BASE, send_buffer, 1);
     }
     for (i = 0; i < 64; i++) {
-        send_buffer[0] = (INT16)chroma_q[i];
+        send_buffer[0] = (INT16)global_scaled_q_chroma[i];
         fifo_write_block(FIFO_OUT_TO_4_BASE, FIFO_OUT_TO_4_CSR_BASE, send_buffer, 1);
     }
 }
@@ -113,8 +114,7 @@ void send_dht_to_stage5() {
 }
 
 void send_output_filename_to_stage6(char *filename) {
-    printf("Stage 1: Sending Output Filename to Stage 6...\n");
-    INT16 name_len = strlen(filename) + 1; // Include null terminator!
+    INT16 name_len = strlen(filename) + 1;
     fifo_write_block(FIFO_OUT_TO_6_BASE, FIFO_OUT_TO_6_CSR_BASE, &name_len, 1);
 
     int i;
@@ -125,163 +125,219 @@ void send_output_filename_to_stage6(char *filename) {
     }
 }
 
-void send_dynamic_header(int width, int height, UINT8 *luma_q, UINT8 *chroma_q) {
-    printf("Stage 1: Patching and Sending headers...\n");
-    UINT8 dynamic_header[623];
-    memcpy(dynamic_header, full_jpeg_headers_template, 623);
+void send_dynamic_header(int width, int height) {
+    memcpy(global_dynamic_header, full_jpeg_headers_template, 623);
 
-    // Patch Zig-Zag Quantization Tables
     int i;
     for(i = 0; i < 64; i++) {
-        dynamic_header[25 + i] = luma_q[ZIGZAG[i]];
-        dynamic_header[94 + i] = chroma_q[ZIGZAG[i]];
+        global_dynamic_header[25 + i] = global_scaled_q_luma[ZIGZAG[i]];
+        global_dynamic_header[94 + i] = global_scaled_q_chroma[ZIGZAG[i]];
     }
 
-    // Patch Height and Width
     int sof_offset = 158;
-    dynamic_header[sof_offset + 5] = (height >> 8) & 0xFF;
-    dynamic_header[sof_offset + 6] = height & 0xFF;
-    dynamic_header[sof_offset + 7] = (width >> 8) & 0xFF;
-    dynamic_header[sof_offset + 8] = width & 0xFF;
+    global_dynamic_header[sof_offset + 5] = (height >> 8) & 0xFF;
+    global_dynamic_header[sof_offset + 6] = height & 0xFF;
+    global_dynamic_header[sof_offset + 7] = (width >> 8) & 0xFF;
+    global_dynamic_header[sof_offset + 8] = width & 0xFF;
 
     INT16 header_size = 623;
     fifo_write_block(FIFO_OUT_TO_6_BASE, FIFO_OUT_TO_6_CSR_BASE, &header_size, 1);
 
     INT16 send_buffer[1];
     for (i = 0; i < header_size; i++) {
-        send_buffer[0] = (INT16)dynamic_header[i];
+        send_buffer[0] = (INT16)global_dynamic_header[i];
         fifo_write_block(FIFO_OUT_TO_6_BASE, FIFO_OUT_TO_6_CSR_BASE, send_buffer, 1);
     }
 }
 
-// --- MAIN FUNCTION ---
 
+// --- MAIN FUNCTION ---
 int main() {
     printf("--- Nios II: Stage 1 (Master Controller & File Config) ---\n\n");
 
-    // Initialize FIFOs
     fifo_init(FIFO_OUT_CSR_BASE);
     fifo_init(FIFO_OUT_TO_4_CSR_BASE);
     fifo_init(FIFO_OUT_TO_5_CSR_BASE);
     fifo_init(FIFO_OUT_TO_6_CSR_BASE);
 
-    // --- READ CONFIGURATION FILE ---
-    char input_filename[256];
-    char output_filename[256];
+    char input_filename[64];
+    char output_filename[64];
     int quality = 50;
+    int num_images = 0;
 
     printf("Reading config file (/mnt/host/files/config.txt)...\n");
     FILE *f_cfg = fopen("/mnt/host/files/config.txt", "r");
+
     if (!f_cfg) {
-        printf("ERROR: Could not open config file! Please create config.txt in your HostFS directory.\n");
+        printf("ERROR: Could not open config file!\n");
         return -1;
     }
 
-    // Read values (skipping whitespace/newlines automatically with %s)
-    if (fscanf(f_cfg, "%255s", input_filename) != 1 ||
-        fscanf(f_cfg, "%255s", output_filename) != 1 ||
-        fscanf(f_cfg, "%d", &quality) != 1) {
-
-        printf("ERROR: Config file formatted incorrectly. Expected 3 lines: Input, Output, Quality.\n");
+    // Read the total batch count first
+    if (fscanf(f_cfg, "%d", &num_images) != 1) {
+        printf("ERROR: Config file missing image count on line 1.\n");
         fclose(f_cfg);
         return -1;
     }
-    fclose(f_cfg);
 
-    // Sanitize quality input
-    if (quality < 1) quality = 1;
-    if (quality > 100) quality = 100;
+    printf("Batch Job Initialized: Processing %d images...\n", num_images);
 
-    printf("Settings Loaded:\n  Input: %s\n  Output: %s\n  Quality: %d\n\n", input_filename, output_filename, quality);
+    // --- LOOP THROUGH EVERY IMAGE ---
+    int img_idx;
+    for (img_idx = 0; img_idx < num_images; img_idx++) {
+        if (fscanf(f_cfg, "%63s", input_filename) != 1 ||
+            fscanf(f_cfg, "%63s", output_filename) != 1 ||
+            fscanf(f_cfg, "%d", &quality) != 1) {
+            printf("ERROR: Config file ran out of entries before expected!\n");
+            break;
+        }
 
-    // --- OPEN TARGET IMAGE ---
-    FILE *f_in = fopen(input_filename, "rb");
-    if (f_in == NULL) {
-        printf("ERROR: Could not open input file %s!\n", input_filename);
-        return -1;
-    }
+        if (quality < 1) quality = 1;
+        if (quality > 100) quality = 100;
 
-    int width = 24, height = 24, pixel_offset = 0, bpp = 24;
-    int is_bmp = parse_image_header(f_in, &width, &height, &pixel_offset, &bpp);
+        printf("\n============================================\n");
+        printf("Processing Image %d of %d\n", img_idx + 1, num_images);
+        printf("  Input: %s\n  Output: %s\n  Quality: %d\n", input_filename, output_filename, quality);
 
-    if (is_bmp && bpp != 24) {
-        printf("FATAL ERROR: Image is %d-bit. Must be 24-bit BMP.\n", bpp);
-        fclose(f_in); return -1;
-    }
+        FILE *f_in = fopen(input_filename, "rb");
+        if (f_in == NULL) {
+            printf("ERROR: Could not open input file %s!\n", input_filename);
+            continue; // Skip to next image instead of crashing the pipeline
+        }
 
-    // --- CALCULATE DYNAMIC QUANTIZATION ---
-    int scale;
-    if (quality < 50) scale = 5000 / quality;
-    else scale = 200 - quality * 2;
+        int width = 24, height = 24, pixel_offset = 0, bpp = 24;
+        int is_bmp = parse_image_header(f_in, &width, &height, &pixel_offset, &bpp);
 
-    UINT8 scaled_q_luma[64];
-    UINT8 scaled_q_chroma[64];
-    int i, temp;
+        if (is_bmp && bpp != 24) {
+            printf("ERROR: Image is %d-bit. Must be 24-bit BMP. Skipping.\n", bpp);
+            fclose(f_in);
+            continue;
+        }
 
-    for (i = 0; i < 64; i++) {
-        temp = (q_table_luma[i] * scale + 50) / 100;
-        if (temp < 1) temp = 1; if (temp > 255) temp = 255;
-        scaled_q_luma[i] = (UINT8)temp;
+        int scale;
+        if (quality < 50) scale = 5000 / quality;
+        else scale = 200 - quality * 2;
 
-        temp = (q_table_chroma[i] * scale + 50) / 100;
-        if (temp < 1) temp = 1; if (temp > 255) temp = 255;
-        scaled_q_chroma[i] = (UINT8)temp;
-    }
+        int i, temp;
+        for (i = 0; i < 64; i++) {
+            temp = (q_table_luma[i] * scale + 50) / 100;
+            if (temp < 1) temp = 1; if (temp > 255) temp = 255;
+            global_scaled_q_luma[i] = (UINT8)temp;
 
-    // --- SEND CONFIGURATIONS ---
-    init_chroma_ac_tables();
-    send_output_filename_to_stage6(output_filename); // Send filename FIRST!
-    send_dqt_to_stage4(scaled_q_luma, scaled_q_chroma);
-    send_dht_to_stage5();
-    send_dynamic_header(width, height, scaled_q_luma, scaled_q_chroma);
+            temp = (q_table_chroma[i] * scale + 50) / 100;
+            if (temp < 1) temp = 1; if (temp > 255) temp = 255;
+            global_scaled_q_chroma[i] = (UINT8)temp;
+        }
 
-    INT16 dimension_packet[2] = {(INT16)width, (INT16)height};
-    fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, dimension_packet, 2);
+        init_chroma_ac_tables();
 
-    // --- STREAMING ENGINE ---
-    int mcus_x = (width + 7) / 8;
-    int mcus_y = (height + 7) / 8;
+        printf("Stage 1: Dispatching config data to downstream processors...\n");
+        send_output_filename_to_stage6(output_filename);
+        send_dqt_to_stage4();
+        send_dht_to_stage5();
+        send_dynamic_header(width, height);
 
-    int strip_size = width * 8 * 3;
-    UINT8 *strip_buffer = (UINT8*)malloc(strip_size);
-    if (!strip_buffer) { printf("Memory Error!\n"); fclose(f_in); return -1; }
+        INT16 dimension_packet[2] = {(INT16)width, (INT16)height};
+        fifo_write_block(FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, dimension_packet, 2);
 
-    int row_padded = (width * 3 + 3) & (~3);
-    UINT8 *row_data = is_bmp ? (UINT8*)malloc(row_padded) : NULL;
+        int mcus_x = (width + 7) / 8;
+        int mcus_y = (height + 7) / 8;
+        int row_padded = (width * 3 + 3) & (~3);
 
-    printf("Stage 1: Streaming image to pipeline...\n");
+        // --- PRE-LOAD LOGIC FOR SMALL IMAGES ---
+        int is_small_image = (width <= 32 && height <= 32);
+        int y, c;
 
-    int mcu_y, y, c;
-    for (mcu_y = 0; mcu_y < mcus_y; mcu_y++) {
-        for (y = 0; y < 8; y++) {
-            int global_y = mcu_y * 8 + y;
-            if (global_y >= height) {
-                if (y > 0) memcpy(&strip_buffer[y * width * 3], &strip_buffer[(y - 1) * width * 3], width * 3);
-                continue;
-            }
-
-            if (is_bmp) {
-                int bmp_row = (height - 1) - global_y;
-                fseek(f_in, pixel_offset + (bmp_row * row_padded), SEEK_SET);
-                fread(row_data, 1, row_padded, f_in);
-
-                for (c = 0; c < width; c++) {
-                    strip_buffer[(y * width + c) * 3 + 0] = row_data[c * 3 + 2];
-                    strip_buffer[(y * width + c) * 3 + 1] = row_data[c * 3 + 1];
-                    strip_buffer[(y * width + c) * 3 + 2] = row_data[c * 3 + 0];
+        if (is_small_image) {
+            printf("Stage 1: Small image detected (%dx%d). Pre-loading to OCM...\n", width, height);
+            for (y = 0; y < height; y++) {
+                if (is_bmp) {
+                    int bmp_row = (height - 1) - y;
+                    fseek(f_in, pixel_offset + (bmp_row * row_padded), SEEK_SET);
+                    fread(global_row_data, 1, row_padded, f_in);
+                    for (c = 0; c < width; c++) {
+                        global_full_image_buffer[(y * width + c) * 3 + 0] = global_row_data[c * 3 + 2];
+                        global_full_image_buffer[(y * width + c) * 3 + 1] = global_row_data[c * 3 + 1];
+                        global_full_image_buffer[(y * width + c) * 3 + 2] = global_row_data[c * 3 + 0];
+                    }
+                } else {
+                    fseek(f_in, pixel_offset + (y * width * 3), SEEK_SET);
+                    fread(&global_full_image_buffer[y * width * 3], 1, width * 3, f_in);
                 }
-            } else {
-                fseek(f_in, pixel_offset + (global_y * width * 3), SEEK_SET);
-                fread(&strip_buffer[y * width * 3], 1, width * 3, f_in);
             }
         }
-        encode_mcu_row(strip_buffer, width, mcus_x, FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, NULL);
+
+        printf("Stage 1: Streaming image to pipeline...\n");
+
+        // --- START TIMER NOW ---
+        if (alt_timestamp_start() < 0) printf("Timer Error!\n");
+        alt_u32 start_time = alt_timestamp();
+
+        int mcu_y;
+        for (mcu_y = 0; mcu_y < mcus_y; mcu_y++) {
+            for (y = 0; y < 8; y++) {
+                int global_y = mcu_y * 8 + y;
+                if (global_y >= height) {
+                    if (y > 0) memcpy(&global_strip_buffer[y * width * 3], &global_strip_buffer[(y - 1) * width * 3], width * 3);
+                    continue;
+                }
+
+                if (is_small_image) {
+                    memcpy(&global_strip_buffer[y * width * 3], &global_full_image_buffer[global_y * width * 3], width * 3);
+                } else {
+                    if (is_bmp) {
+                        int bmp_row = (height - 1) - global_y;
+                        fseek(f_in, pixel_offset + (bmp_row * row_padded), SEEK_SET);
+                        fread(global_row_data, 1, row_padded, f_in);
+
+                        for (c = 0; c < width; c++) {
+                            global_strip_buffer[(y * width + c) * 3 + 0] = global_row_data[c * 3 + 2];
+                            global_strip_buffer[(y * width + c) * 3 + 1] = global_row_data[c * 3 + 1];
+                            global_strip_buffer[(y * width + c) * 3 + 2] = global_row_data[c * 3 + 0];
+                        }
+                    } else {
+                        fseek(f_in, pixel_offset + (global_y * width * 3), SEEK_SET);
+                        fread(&global_strip_buffer[y * width * 3], 1, width * 3, f_in);
+                    }
+                }
+            }
+            encode_mcu_row(global_strip_buffer, width, mcus_x, FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, NULL);
+        }
+
+        // --- STOP TIMER ---
+        alt_u32 end_time = alt_timestamp();
+
+        // --- SAFE MATH TO PREVENT OVERFLOW ---
+        alt_u32 ticks = end_time - start_time;
+        if (ticks == 0) ticks = 1;
+
+        alt_u32 freq = alt_timestamp_freq();
+        float secs = (float)ticks / (float)freq;
+        alt_u32 time_ms = (alt_u32)(secs * 1000.0f);
+
+        int total_raw_bytes = width * height * 3;
+        alt_u32 throughput = (alt_u32)((float)total_raw_bytes / secs);
+
+        printf("--- STAGE 1 (DISPATCH) BENCHMARK ---\n");
+        printf("Total Clock Cycles : %lu\n", ticks);
+        printf("Total Time         : %lu milliseconds\n", time_ms);
+        printf("Throughput         : %lu Raw Bytes/sec\n", throughput);
+
+        fclose(f_in);
+        printf("Stage 1: Dispatch complete for Image %d.\n", img_idx + 1);
     }
 
-    if (row_data) free(row_data);
-    free(strip_buffer);
-    fclose(f_in);
+    fclose(f_cfg);
 
-    printf("Stage 1: Complete!\n");
+    // --- INFINITE TRAP ADDED HERE ---
+    printf("\n============================================\n");
+    printf("Batch processing complete! All images dispatched.\n");
+    printf("Halting Master Controller to prevent loop restart.\n");
+    printf("============================================\n");
+
+    while(1) {
+        // Infinite idle loop keeps the program from resetting to the start.
+    }
+
     return 0;
 }
