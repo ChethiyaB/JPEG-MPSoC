@@ -17,7 +17,7 @@
 #define FIFO_OUT_TO_5_BASE      FIFO_1_TO_5_IN_BASE
 #define FIFO_OUT_TO_5_CSR_BASE  FIFO_1_TO_5_IN_CSR_BASE
 
-// --- GLOBAL BUFFERS TO PREVENT STACK OVERFLOW ---
+// --- GLOBAL BUFFERS ---
 UINT8 global_dynamic_header[623];
 UINT8 global_strip_buffer[1536];
 UINT8 global_row_data[128];
@@ -26,6 +26,9 @@ UINT8 global_scaled_q_chroma[64];
 
 // --- BUFFER FOR FAST-PATH SMALL IMAGES (32x32x3 = 3072 bytes) ---
 UINT8 global_full_image_buffer[3072];
+
+// --- MCU-BY-MCU BUFFER FOR LARGE IMAGES ---
+UINT8 global_mcu_buffer[192];
 
 // --- TEMPLATES AND TABLES ---
 const UINT8 full_jpeg_headers_template[623] = {
@@ -173,7 +176,6 @@ int main() {
         return -1;
     }
 
-    // Read the total batch count first
     if (fscanf(f_cfg, "%d", &num_images) != 1) {
         printf("ERROR: Config file missing image count on line 1.\n");
         fclose(f_cfg);
@@ -182,7 +184,6 @@ int main() {
 
     printf("Batch Job Initialized: Processing %d images...\n", num_images);
 
-    // --- LOOP THROUGH EVERY IMAGE ---
     int img_idx;
     for (img_idx = 0; img_idx < num_images; img_idx++) {
         if (fscanf(f_cfg, "%63s", input_filename) != 1 ||
@@ -202,7 +203,7 @@ int main() {
         FILE *f_in = fopen(input_filename, "rb");
         if (f_in == NULL) {
             printf("ERROR: Could not open input file %s!\n", input_filename);
-            continue; // Skip to next image instead of crashing the pipeline
+            continue; 
         }
 
         int width = 24, height = 24, pixel_offset = 0, bpp = 24;
@@ -244,12 +245,12 @@ int main() {
         int mcus_y = (height + 7) / 8;
         int row_padded = (width * 3 + 3) & (~3);
 
-        // --- PRE-LOAD LOGIC FOR SMALL IMAGES ---
+        // --- HYBRID LOGIC CHECK ---
         int is_small_image = (width <= 32 && height <= 32);
         int y, c;
 
         if (is_small_image) {
-            printf("Stage 1: Small image detected (%dx%d). Pre-loading to OCM...\n", width, height);
+            printf("Stage 1: Small image detected (%dx%d). Using Fast-Path Strip Buffer...\n", width, height);
             for (y = 0; y < height; y++) {
                 if (is_bmp) {
                     int bmp_row = (height - 1) - y;
@@ -265,49 +266,72 @@ int main() {
                     fread(&global_full_image_buffer[y * width * 3], 1, width * 3, f_in);
                 }
             }
+        } else {
+            printf("Stage 1: Large image detected (%dx%d). Using MCU-by-MCU Architecture...\n", width, height);
         }
 
         printf("Stage 1: Streaming image to pipeline...\n");
 
-        // --- START TIMER NOW ---
         if (alt_timestamp_start() < 0) printf("Timer Error!\n");
         alt_u32 start_time = alt_timestamp();
 
-        int mcu_y;
-        for (mcu_y = 0; mcu_y < mcus_y; mcu_y++) {
-            for (y = 0; y < 8; y++) {
-                int global_y = mcu_y * 8 + y;
-                if (global_y >= height) {
-                    if (y > 0) memcpy(&global_strip_buffer[y * width * 3], &global_strip_buffer[(y - 1) * width * 3], width * 3);
-                    continue;
-                }
-
-                if (is_small_image) {
-                    memcpy(&global_strip_buffer[y * width * 3], &global_full_image_buffer[global_y * width * 3], width * 3);
-                } else {
-                    if (is_bmp) {
-                        int bmp_row = (height - 1) - global_y;
-                        fseek(f_in, pixel_offset + (bmp_row * row_padded), SEEK_SET);
-                        fread(global_row_data, 1, row_padded, f_in);
-
-                        for (c = 0; c < width; c++) {
-                            global_strip_buffer[(y * width + c) * 3 + 0] = global_row_data[c * 3 + 2];
-                            global_strip_buffer[(y * width + c) * 3 + 1] = global_row_data[c * 3 + 1];
-                            global_strip_buffer[(y * width + c) * 3 + 2] = global_row_data[c * 3 + 0];
-                        }
-                    } else {
-                        fseek(f_in, pixel_offset + (global_y * width * 3), SEEK_SET);
-                        fread(&global_strip_buffer[y * width * 3], 1, width * 3, f_in);
+        if (is_small_image) {
+            // --- EXACT ORIGINAL APPROACH FOR SMALL IMAGES ---
+            int mcu_y;
+            for (mcu_y = 0; mcu_y < mcus_y; mcu_y++) {
+                for (y = 0; y < 8; y++) {
+                    int global_y = mcu_y * 8 + y;
+                    if (global_y >= height) {
+                        if (y > 0) memcpy(&global_strip_buffer[y * width * 3], &global_strip_buffer[(y - 1) * width * 3], width * 3);
+                        continue;
                     }
+                    memcpy(&global_strip_buffer[y * width * 3], &global_full_image_buffer[global_y * width * 3], width * 3);
+                }
+                encode_mcu_row(global_strip_buffer, width, mcus_x, FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, NULL);
+            }
+        } else {
+            // --- MCU-BY-MCU APPROACH FOR LARGE IMAGES ---
+            int mcu_y, mcu_x;
+            for (mcu_y = 0; mcu_y < mcus_y; mcu_y++) {
+                for (mcu_x = 0; mcu_x < mcus_x; mcu_x++) {
+                    for (y = 0; y < 8; y++) {
+                        int global_y = mcu_y * 8 + y;
+                        int safe_y = (global_y >= height) ? (height - 1) : global_y;
+                        int read_width = 8;
+                        if (mcu_x * 8 + 8 > width) read_width = width - mcu_x * 8;
+
+                        if (is_bmp) {
+                            int bmp_row = (height - 1) - safe_y;
+                            fseek(f_in, pixel_offset + (bmp_row * row_padded) + (mcu_x * 24), SEEK_SET);
+                            
+                            // It is safe to use global_row_data here because it is 128 bytes, 
+                            // and read_width * 3 is max 24 bytes!
+                            fread(global_row_data, 1, read_width * 3, f_in);
+
+                            for (c = 0; c < read_width; c++) {
+                                global_mcu_buffer[(y * 8 + c) * 3 + 0] = global_row_data[c * 3 + 2];
+                                global_mcu_buffer[(y * 8 + c) * 3 + 1] = global_row_data[c * 3 + 1];
+                                global_mcu_buffer[(y * 8 + c) * 3 + 2] = global_row_data[c * 3 + 0];
+                            }
+                        } else {
+                            fseek(f_in, pixel_offset + (safe_y * width * 3) + (mcu_x * 24), SEEK_SET);
+                            fread(&global_mcu_buffer[y * 24], 1, read_width * 3, f_in);
+                        }
+
+                        // Right Edge Padding
+                        for (c = read_width; c < 8; c++) {
+                            global_mcu_buffer[(y * 8 + c) * 3 + 0] = global_mcu_buffer[(y * 8 + read_width - 1) * 3 + 0];
+                            global_mcu_buffer[(y * 8 + c) * 3 + 1] = global_mcu_buffer[(y * 8 + read_width - 1) * 3 + 1];
+                            global_mcu_buffer[(y * 8 + c) * 3 + 2] = global_mcu_buffer[(y * 8 + read_width - 1) * 3 + 2];
+                        }
+                    }
+                    encode_mcu_row(global_mcu_buffer, 8, 1, FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, NULL);
                 }
             }
-            encode_mcu_row(global_strip_buffer, width, mcus_x, FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, NULL);
         }
 
-        // --- STOP TIMER ---
         alt_u32 end_time = alt_timestamp();
 
-        // --- SAFE MATH TO PREVENT OVERFLOW ---
         alt_u32 ticks = end_time - start_time;
         if (ticks == 0) ticks = 1;
 
@@ -329,15 +353,12 @@ int main() {
 
     fclose(f_cfg);
 
-    // --- INFINITE TRAP ADDED HERE ---
     printf("\n============================================\n");
     printf("Batch processing complete! All images dispatched.\n");
     printf("Halting Master Controller to prevent loop restart.\n");
     printf("============================================\n");
 
-    while(1) {
-        // Infinite idle loop keeps the program from resetting to the start.
-    }
+    while(1) { }
 
     return 0;
 }
