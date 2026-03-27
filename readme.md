@@ -4,14 +4,24 @@
 
 **A six-core Nios II pipeline on FPGA for JPEG encoding — hardware FIFO interconnect, HostFS I/O, and optional custom-instruction accelerators.**
 
-[![FPGA](https://img.shields.io/badge/Hardware-DE2--115%20%7C%20Cyclone%20IV-e94560?style=for-the-badge)]()
-[![Quartus](https://img.shields.io/badge/Quartus-II%2013.1%20Web%20Edition-0071c5?style=for-the-badge&logo=intel&logoColor=white)]()
-[![Nios II](https://img.shields.io/badge/CPU-6%20%C3%97%20Nios%20II%2Fe%20-2ea44f?style=for-the-badge)]()
-[![Language](https://img.shields.io/badge/code-C%20%7C%20Verilog%20%7C%20SystemVerilog-blue?style=for-the-badge&logo=c&logoColor=white)]()
+[![FPGA](https://img.shields.io/badge/DE2--115%20%E2%80%A2%20Cyclone%20IV-e94560?style=for-the-badge)]()
+[![Quartus](https://img.shields.io/badge/Quartus%20II-13.1%20Web%20Edition-0071c5?style=for-the-badge&logo=intel&logoColor=white)]()
+[![Nios II](https://img.shields.io/badge/Nios%20II%2Fe-6%20cores%20%4050%20MHz-2ea44f?style=for-the-badge)]()
+[![Stack](https://img.shields.io/badge/C%20%E2%80%A2%20Verilog%20%E2%80%A2%20SystemVerilog-5c6bc0?style=for-the-badge&logo=c&logoColor=white)]()
+[![JPEG](https://img.shields.io/badge/JPEG-baseline%20encoder-f59e0b?style=for-the-badge)]()
+
+<sub>University of Peradeniya · Department of Computer Engineering</sub>
 
 <br/>
 
 </div>
+
+<p align="center">
+  <a href="#hardware-platform"><img src="https://img.shields.io/badge/FPGA-Cyclone%20IV-8b5cf6?style=flat-square" alt="FPGA"/></a>
+  <a href="#software-architecture"><img src="https://img.shields.io/badge/Software-6%20stages-06b6d4?style=flat-square" alt="Software"/></a>
+  <a href="#part-2-hardware-acceleration"><img src="https://img.shields.io/badge/Accelerators-RGB%20%2B%20DCT-f97316?style=flat-square" alt="Accelerators"/></a>
+  <a href="#interconnect-and-data-planes"><img src="https://img.shields.io/badge/Links-Avalon--FIFOs-22c55e?style=flat-square" alt="FIFOs"/></a>
+</p>
 
 ---
 
@@ -20,10 +30,10 @@
 1. [Overview](#overview)
 2. [System architecture](#system-architecture)
 3. [Hardware platform](#hardware-platform)
-4. [RTL implementation (concrete map)](#rtl-implementation-concrete-map)
+4. [RTL implementation](#rtl-implementation)
 5. [Software architecture](#software-architecture)
-6. [Software implementation (concrete map)](#software-implementation-concrete-map)
-7. [Pipeline stages (functional view)](#pipeline-stages-functional-view)
+6. [Software implementation](#software-implementation)
+7. [Pipeline stages](#pipeline-stages)
 8. [Interconnect and data planes](#interconnect-and-data-planes)
 9. [Design techniques and trade-offs](#design-techniques-and-trade-offs)
 10. [Part 2: hardware acceleration](#part-2-hardware-acceleration)
@@ -32,7 +42,6 @@
 13. [Build, program, and run](#build-program-and-run)
 14. [Troubleshooting](#troubleshooting)
 15. [References and documentation](#references-and-documentation)
-16. [Authors](#authors)
 
 ---
 
@@ -58,12 +67,12 @@ flowchart LR
     JPG["JPEG output"]
   end
 
-  S1["Stage 1<br/>Master / I/O"]
-  S2["Stage 2<br/>Level shift"]
-  S3["Stage 3<br/>DCT"]
-  S4["Stage 4<br/>Quant + zig-zag"]
-  S5["Stage 5<br/>Huffman"]
-  S6["Stage 6<br/>File write"]
+  S1["Stage 1: Master / I/O"]
+  S2["Stage 2: Level shift"]
+  S3["Stage 3: DCT"]
+  S4["Stage 4: Quant + zig-zag"]
+  S5["Stage 5: Huffman"]
+  S6["Stage 6: File write"]
 
   CFG --> S1
   BMP --> S1
@@ -74,9 +83,26 @@ flowchart LR
   S5 -->|"fifo_5_to_6"| S6
   S6 --> JPG
 
-  S1 -.->|"fifo_1_to_4 DQT"| S4
-  S1 -.->|"fifo_1_to_5 DHT"| S5
-  S1 -.->|"fifo_1_to_6 header + name"| S6
+  S1 -.->|"DQT"| S4
+  S1 -.->|"DHT"| S5
+  S1 -.->|"header + name"| S6
+
+  classDef host fill:#6366f1,stroke:#4338ca,color:#fff
+  classDef s1 fill:#f97316,stroke:#c2410c,color:#fff
+  classDef s2 fill:#eab308,stroke:#a16207,color:#1c1917
+  classDef s3 fill:#22c55e,stroke:#15803d,color:#fff
+  classDef s4 fill:#14b8a6,stroke:#0f766e,color:#fff
+  classDef s5 fill:#3b82f6,stroke:#1d4ed8,color:#fff
+  classDef s6 fill:#a855f7,stroke:#7e22ce,color:#fff
+  classDef file fill:#ec4899,stroke:#be185d,color:#fff
+  class CFG,BMP host
+  class S1 s1
+  class S2 s2
+  class S3 s3
+  class S4 s4
+  class S5 s5
+  class S6 s6
+  class JPG file
 ```
 
 ---
@@ -128,7 +154,7 @@ Synthesized RTL for the SoC lives under `hardware/MPSoC/synthesis/` (`MPSoC.v` t
 
 ---
 
-## RTL implementation (concrete map)
+## RTL implementation
 
 The Qsys **HTML** export is a good block diagram but hides **instance reuse**, **reset domains**, and **CI wiring**. These details are explicit in **`hardware/MPSoC/synthesis/MPSoC.v`** (generated **2026-03-27**, ACDS **13.1**).
 
@@ -266,7 +292,7 @@ Stages **2–6** wrap the inner loop with **`alt_timestamp_start()`** / **`alt_t
 
 ### Stage 3 — DCT
 
-- In this repository, **`dct.c`** implements the transform via the **`dct_accelerator`** custom instruction (write 64 samples, trigger compute, read 64 coefficients) — see [Software implementation (concrete map)](#software-implementation-concrete-map).
+- In this repository, **`dct.c`** implements the transform via the **`dct_accelerator`** custom instruction (write 64 samples, trigger compute, read 64 coefficients) — see [Software implementation](#software-implementation).
 - Stream structure unchanged: 64 coefficients per block, MCU-major
 
 ### Stage 4 — Quantization and zig-zag
@@ -386,13 +412,17 @@ Representative results from the lab report (exact numbers depend on image and bu
 
 ## References and documentation
 
-- **ITU-T T.81** — JPEG baseline encoding
-- **Intel Quartus II / Nios II** — embedded design flow
+### Standards and manuals
+
+- **ITU-T T.81 (1992)** — *Information technology — Digital compression and coding of continuous-tone still images — Requirements and guidelines* (JPEG baseline).
+- **[Terasic DE2-115 user manual and resources](https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&CategoryNo=139&No=836)** — board-specific I/O, clocks, and pinout for the Cyclone IV EP4CE115 platform used with this project.
+- **[Intel Quartus II Handbook (legacy documentation)](https://www.intel.com/content/www/us/en/docs/programmable/683059/current/quartus-ii-handbook.html)** — design, synthesis, and compilation flow for Quartus II (e.g. Qsys, timing, compilation reports); see also the *Nios II Processor Reference Handbook* and *Embedded Design Handbook* in the same Intel FPGA documentation collection for Nios II BSP and software development.
+
+### Related research
+
+- **H. Javaid** and **S. Parameswaran**, “Synthesis of Heterogeneous Pipelined Multiprocessor Systems using ILP: JPEG Case Study,” School of Computer Science and Engineering, University of New South Wales, Sydney, Australia.  
+  - Conference: *CODES+ISSS ’08* — *Proceedings of the 6th IEEE/ACM/IFIP International Conference on Hardware/Software Codesign and System Synthesis*, 2008.  
+  - DOI: [10.1145/1450135.1450137](https://doi.org/10.1145/1450135.1450137) — ACM Digital Library: [https://dl.acm.org/doi/10.1145/1450135.1450137](https://dl.acm.org/doi/10.1145/1450135.1450137)  
+  - Contact (as published): `{harisj, sridevan}@cse.unsw.edu.au`
 
 ---
-
-<div align="center">
-
-<sub>README generated to reflect the Practical 4 lab report and this repository’s software/hardware layout.</sub>
-
-</div>
