@@ -1,3 +1,4 @@
+#include "system.h"
 #include "encoder.h"
 #include "nios2_common/fifo_io.h"
 
@@ -24,14 +25,26 @@ void encode_mcu_row(UINT8 *strip_buffer, int width, int mcus_x, unsigned int fif
                 INT16 G = strip_buffer[pixel_idx + 1];
                 INT16 B = strip_buffer[pixel_idx + 2];
 
-                // 2. RGB to YCbCr Math
-                int Y_val  = ( 19595 * R + 38469 * G +  7471 * B) >> 16;
-                int Cb_val = ((-11059 * R - 21709 * G + 32768 * B) >> 16) + 128;
-                int Cr_val = (( 32768 * R - 27439 * G -  5329 * B) >> 16) + 128;
+//                // 2. RGB to YCbCr Math
+//                int Y_val  = ( 19595 * R + 38469 * G +  7471 * B) >> 16;
+//                int Cb_val = ((-11059 * R - 21709 * G + 32768 * B) >> 16) + 128;
+//                int Cr_val = (( 32768 * R - 27439 * G -  5329 * B) >> 16) + 128;
+//
+//                Y_block[y * 8 + x]  = (INT16)Y_val;
+//                Cb_block[y * 8 + x] = (INT16)Cb_val;
+//                Cr_block[y * 8 + x] = (INT16)Cr_val;
 
-                Y_block[y * 8 + x]  = (INT16)Y_val;
-                Cb_block[y * 8 + x] = (INT16)Cb_val;
-                Cr_block[y * 8 + x] = (INT16)Cr_val;
+
+//                // 2. Hardware Accelerated RGB to YCbCr
+                UINT32 packed_rgb = (R << 16) | (G << 8) | B;
+
+                // Call the hardware
+                UINT32 packed_ycbcr = ALT_CI_RGB_TO_YCBCR_CI_0(packed_rgb);
+
+                // Unpack the results
+                Y_block[y * 8 + x]  = (INT16)((packed_ycbcr >> 16) & 0xFF);
+                Cb_block[y * 8 + x] = (INT16)((packed_ycbcr >> 8) & 0xFF);
+                Cr_block[y * 8 + x] = (INT16)(packed_ycbcr & 0xFF);
             }
         }
 

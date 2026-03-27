@@ -186,12 +186,17 @@ int main() {
 
     int img_idx;
     for (img_idx = 0; img_idx < num_images; img_idx++) {
-        if (fscanf(f_cfg, "%63s", input_filename) != 1 ||
-            fscanf(f_cfg, "%63s", output_filename) != 1 ||
-            fscanf(f_cfg, "%d", &quality) != 1) {
-            printf("ERROR: Config file ran out of entries before expected!\n");
-            break;
-        }
+    	int read_in = fscanf(f_cfg, "%s", input_filename);
+		int read_out = fscanf(f_cfg, "%s", output_filename);
+		int read_q = fscanf(f_cfg, "%d", &quality);
+
+		if (read_in != 1 || read_out != 1 || read_q != 1) {
+			printf("ERROR: Config parsing failed on Image %d!\n", img_idx + 1);
+			printf("  read_in result: %d (Expected 1)\n", read_in);
+			printf("  read_out result: %d (Expected 1)\n", read_out);
+			printf("  read_q result: %d (Expected 1)\n", read_q);
+			break;
+		}
 
         if (quality < 1) quality = 1;
         if (quality > 100) quality = 100;
@@ -203,7 +208,7 @@ int main() {
         FILE *f_in = fopen(input_filename, "rb");
         if (f_in == NULL) {
             printf("ERROR: Could not open input file %s!\n", input_filename);
-            continue; 
+            continue;
         }
 
         int width = 24, height = 24, pixel_offset = 0, bpp = 24;
@@ -276,7 +281,6 @@ int main() {
         alt_u32 start_time = alt_timestamp();
 
         if (is_small_image) {
-            // --- EXACT ORIGINAL APPROACH FOR SMALL IMAGES ---
             int mcu_y;
             for (mcu_y = 0; mcu_y < mcus_y; mcu_y++) {
                 for (y = 0; y < 8; y++) {
@@ -290,7 +294,6 @@ int main() {
                 encode_mcu_row(global_strip_buffer, width, mcus_x, FIFO_OUT_BASE, FIFO_OUT_CSR_BASE, NULL);
             }
         } else {
-            // --- MCU-BY-MCU APPROACH FOR LARGE IMAGES ---
             int mcu_y, mcu_x;
             for (mcu_y = 0; mcu_y < mcus_y; mcu_y++) {
                 for (mcu_x = 0; mcu_x < mcus_x; mcu_x++) {
@@ -303,9 +306,7 @@ int main() {
                         if (is_bmp) {
                             int bmp_row = (height - 1) - safe_y;
                             fseek(f_in, pixel_offset + (bmp_row * row_padded) + (mcu_x * 24), SEEK_SET);
-                            
-                            // It is safe to use global_row_data here because it is 128 bytes, 
-                            // and read_width * 3 is max 24 bytes!
+
                             fread(global_row_data, 1, read_width * 3, f_in);
 
                             for (c = 0; c < read_width; c++) {
@@ -357,6 +358,9 @@ int main() {
     printf("Batch processing complete! All images dispatched.\n");
     printf("Halting Master Controller to prevent loop restart.\n");
     printf("============================================\n");
+
+    // FIXED: Force the console to flush so the messages above actually display!
+    fflush(stdout);
 
     while(1) { }
 
